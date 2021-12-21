@@ -16,26 +16,44 @@ defmodule CoinReturn do
   def give_back(amount, coins, extra) do
     left = amount - acc(extra)
 
+    # This is a very important step that is easy to overlook.
+    # We prune coins, which means that we keep our solution
+    # from going into an endless loop. The reason is that
+    # when we take the right branch below, we don't actually
+    # prune the coin types, which would make the algorithm
+    # continue forever. But we have a extra pruning step here
+    # that prevents the tree to grow forever.
+    # Moreover, we make sure that we are always have the coins
+    # sorted in descending order. So we always look at the highest
+    # coin type when we split into the left and right branch.
     coins =
       coins
       |> Enum.filter(&(&1 <= left))
       |> Enum.sort(:desc)
 
-    # Either the solution cointains atleast one of the highest
-    # coin or it doesn't include any
     case coins do
-      [] ->
+      [] when left == 0 ->
+        # No coins are left to use and nothing left to distribute.
         [extra]
 
-      [n] ->
-        [Map.update(extra, n, left, &(&1 + left))]
+      [1] ->
+        # Only the one-coin is left to distribute
+        [Map.update(extra, 1, left, &(&1 + left))]
 
       [high | _] ->
+        # Key part of the algorithm:
+        #  Either the solution cointains atleast one of the highest
+        #  coin or it doesn't include any off them.
+
+        # Left branch: Does not contain any of the hightest coins
         coins_l = coins |> List.delete(high)
-        coins_r = coins
         extra_l = extra
+
+        # Right branch: Contains atleast one of the highest coins
+        coins_r = coins
         extra_r = Map.update(extra, high, 1, &(&1 + 1))
 
+        # Merge solutions for the left and right branch
         give_back(amount, coins_l, extra_l) ++ give_back(amount, coins_r, extra_r)
     end
   end
@@ -53,10 +71,9 @@ defmodule CoinReturn do
       end
     end
     |> List.flatten()
-    |> Enum.reverse()
   end
 
-  def do_brute_force(amount, _coins) do
+  def brute_force(amount, _coins) do
     {:error, "unable to brute force large amounts #{amount}"}
   end
 
